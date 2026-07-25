@@ -68,6 +68,12 @@ export const config = {
     ytdlp: env.YTDLP_PATH || '',
     ffmpeg: env.FFMPEG_PATH || '',
     ffprobe: env.FFPROBE_PATH || '',
+    // Netscape-format cookies.txt for yt-dlp. Needed on hosts whose IP YouTube
+    // treats as a bot (most datacenter/cloud ranges) — without it, metadata,
+    // video and subtitle requests all fail with "Sign in to confirm you're
+    // not a bot". Leave blank to let yt-dlp request anonymously (fine on most
+    // residential connections).
+    ytdlpCookies: env.YTDLP_COOKIES_PATH || '',
   },
 
   pipeline: {

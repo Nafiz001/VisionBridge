@@ -54,6 +54,11 @@ export function parseVideoId(input) {
 
 export const watchUrl = (videoId) => `https://www.youtube.com/watch?v=${videoId}`;
 
+/** `--cookies <path>` when a cookies.txt is configured, else no extra args. */
+function cookieArgs() {
+  return config.bin.ytdlpCookies ? ['--cookies', config.bin.ytdlpCookies] : [];
+}
+
 function requireYtDlp() {
   const bin = ytdlpPath();
   if (!bin) {
@@ -100,9 +105,11 @@ export async function getVideoInfo(videoId) {
 
   const bin = requireYtDlp();
   const { stdout } = await logger.time('yt-dlp metadata', () =>
-    run(bin, ['--dump-single-json', '--skip-download', '--no-warnings', watchUrl(videoId)], {
-      timeoutMs: 120_000,
-    }),
+    run(
+      bin,
+      ['--dump-single-json', '--skip-download', '--no-warnings', ...cookieArgs(), watchUrl(videoId)],
+      { timeoutMs: 120_000 },
+    ),
   );
 
   let info;
@@ -178,6 +185,7 @@ export async function downloadVideo(videoId, onProgress) {
         '--no-part',
         '--retries',
         '3',
+        ...cookieArgs(),
         '-o',
         output,
         watchUrl(videoId),
@@ -305,6 +313,7 @@ export async function downloadSubtitles(videoId, { preferredLangs } = {}) {
             'json3/vtt',
             '--no-warnings',
             '--no-playlist',
+            ...cookieArgs(),
             '-o',
             output,
             watchUrl(videoId),
