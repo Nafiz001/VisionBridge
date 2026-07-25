@@ -1,7 +1,21 @@
 /** Thin fetch wrapper around the VisionBridge API. */
 
+/**
+ * Where the API lives.
+ *
+ * Empty (the default) keeps every path relative, which is what local dev wants:
+ * Vite proxies `/api` to the server, and `npm start` serves the built client
+ * from the server itself. A split deployment — static client on one host, the
+ * pipeline server on a machine with ffmpeg and yt-dlp — sets VITE_API_BASE to
+ * that server's origin at build time.
+ */
+export const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
+
+/** Resolves an API path against the configured base. */
+export const apiUrl = (path) => `${API_BASE}${path}`;
+
 async function request(path, { method = 'GET', body, signal } = {}) {
-  const response = await fetch(path, {
+  const response = await fetch(apiUrl(path), {
     method,
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
     body: body ? JSON.stringify(body) : undefined,
@@ -50,7 +64,7 @@ export const api = {
   /** Send a recorded audio clip; the server transcribes it and searches. */
   voiceSearch: async (blob, { language } = {}) => {
     const qs = language ? `?language=${encodeURIComponent(language)}` : '';
-    const response = await fetch(`/api/voice-search${qs}`, {
+    const response = await fetch(apiUrl(`/api/voice-search${qs}`), {
       method: 'POST',
       headers: { 'Content-Type': blob.type || 'audio/webm' },
       body: blob,

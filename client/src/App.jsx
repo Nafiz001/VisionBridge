@@ -6,7 +6,7 @@
  * and the interactive assistant.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import api from './lib/api.js';
+import api, { apiUrl } from './lib/api.js';
 import { speakTime } from './lib/format.js';
 import useAnnouncer from './hooks/useAnnouncer.js';
 import useSettings from './hooks/useSettings.js';
@@ -777,7 +777,7 @@ export default function App() {
           </p>
         </div>
         <div className="footer-actions" style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <a href="/api/config" target="_blank" rel="noreferrer">
+          <a href={apiUrl('/api/config')} target="_blank" rel="noreferrer">
             <Icon name="external" size={16} />
             Model config
           </a>
