@@ -1179,6 +1179,11 @@ legend {
 .search-bar button[type='submit'] {
   min-width: 8.5rem;
   white-space: nowrap;
+  /* .dialog .primary sets margin-top for a standalone dialog-closing button
+     (Settings, Shortcuts); it also matches this submit button since it lives
+     in a .dialog too, which pushed it down out of line with the mic button
+     inside the flex row. */
+  margin-top: 0;
 }
 
 .mic-btn.listening {
