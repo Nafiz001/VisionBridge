@@ -81,7 +81,17 @@ sudo apt install -y nodejs
 # YouTube extraction breaks.
 sudo pip3 install --break-system-packages -U yt-dlp
 
-node -v && ffmpeg -version | head -1 && yt-dlp --version
+# Deno — yt-dlp needs a JS runtime to solve YouTube's signature challenges.
+# Without one, every format resolution fails with "Requested format is not
+# available", even on a residential connection. Ubuntu's apt has no deno
+# package, so fetch the release binary directly.
+cd /tmp
+curl -fsSL -o deno.zip https://github.com/denoland/deno/releases/latest/download/deno-x86_64-unknown-linux-gnu.zip
+unzip -o -q deno.zip && sudo mv deno /usr/local/bin/deno && sudo chmod +x /usr/local/bin/deno
+rm -f deno.zip
+cd ~
+
+node -v && ffmpeg -version | head -1 && yt-dlp --version && deno --version
 ```
 
 ### 4. Get the code
@@ -212,21 +222,26 @@ Network tab go to the Azure hostname and return 200.
 
 ---
 
-## The one thing likely to bite you
+## Two things likely to bite you on a cloud host
 
-YouTube throttles and challenges requests from datacenter IP ranges, which is
-exactly what an Azure VM is. `yt-dlp` may start returning *"Sign in to confirm
-you're not a bot"* where it worked fine on your laptop. It is not a bug in this
-codebase and no amount of retrying fixes it.
+**1. YouTube throttles and challenges requests from datacenter IP ranges.**
+`yt-dlp` may return *"Sign in to confirm you're not a bot"* where it worked
+fine on your laptop. Fix: give yt-dlp browser cookies from a logged-in
+session. Export `cookies.txt` from a browser (a **throwaway Google account**,
+not your own — this file is a live session credential), copy it to the VM,
+`chmod 600` it, and set `YTDLP_COOKIES_PATH` in `.env` to its path. Never
+commit it — it's already covered by `.gitignore`.
 
-The workaround is to give yt-dlp browser cookies from a logged-in YouTube
-session: export them to `cookies.txt` and pass `--cookies`. Doing that means
-storing a real Google session on the VM, so use a throwaway account, keep the
-file `chmod 600`, and never commit it.
+**2. Format resolution fails outright without a JS runtime.** Independent of
+the cookie issue — current YouTube requires solving a JS signature challenge
+before it will hand back format URLs at all. Without Deno (or Node ≥22)
+installed, every metadata, download, and subtitle call fails with *"Requested
+format is not available"*, even from a residential IP. Step 3 above installs
+Deno; the code passes `--remote-components ejs:github` on every yt-dlp
+invocation so it can fetch its solver script (cached after the first run).
 
 If the demo has to be reliable — a judged submission, a live presentation —
-pre-process the videos you'll show while the cache directory persists, or run
-the server from a residential connection over a tunnel instead.
+pre-process the videos you'll show while the cache directory persists.
 
 ## Operating notes
 

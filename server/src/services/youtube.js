@@ -54,9 +54,20 @@ export function parseVideoId(input) {
 
 export const watchUrl = (videoId) => `https://www.youtube.com/watch?v=${videoId}`;
 
-/** `--cookies <path>` when a cookies.txt is configured, else no extra args. */
-function cookieArgs() {
-  return config.bin.ytdlpCookies ? ['--cookies', config.bin.ytdlpCookies] : [];
+/**
+ * Extra flags every yt-dlp invocation needs.
+ *
+ * `--remote-components ejs:github` lets yt-dlp fetch its JS challenge-solver
+ * script (cached after the first run); without it, format resolution fails
+ * outright on current YouTube ("Requested format is not available") even
+ * with a working JS runtime. `--cookies` is added only when a cookies.txt is
+ * configured — required on most cloud/datacenter hosts, where YouTube
+ * otherwise responds "Sign in to confirm you're not a bot".
+ */
+function ytdlpArgs() {
+  const args = ['--remote-components', 'ejs:github'];
+  if (config.bin.ytdlpCookies) args.push('--cookies', config.bin.ytdlpCookies);
+  return args;
 }
 
 function requireYtDlp() {
@@ -107,7 +118,7 @@ export async function getVideoInfo(videoId) {
   const { stdout } = await logger.time('yt-dlp metadata', () =>
     run(
       bin,
-      ['--dump-single-json', '--skip-download', '--no-warnings', ...cookieArgs(), watchUrl(videoId)],
+      ['--dump-single-json', '--skip-download', '--no-warnings', ...ytdlpArgs(), watchUrl(videoId)],
       { timeoutMs: 120_000 },
     ),
   );
@@ -185,7 +196,7 @@ export async function downloadVideo(videoId, onProgress) {
         '--no-part',
         '--retries',
         '3',
-        ...cookieArgs(),
+        ...ytdlpArgs(),
         '-o',
         output,
         watchUrl(videoId),
@@ -313,7 +324,7 @@ export async function downloadSubtitles(videoId, { preferredLangs } = {}) {
             'json3/vtt',
             '--no-warnings',
             '--no-playlist',
-            ...cookieArgs(),
+            ...ytdlpArgs(),
             '-o',
             output,
             watchUrl(videoId),
