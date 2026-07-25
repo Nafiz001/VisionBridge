@@ -7,6 +7,14 @@ node_modules/
 .env.*
 !.env.example
 
+# SSH private keys (e.g. Azure VM access) must never be committed.
+*.pem
+*.ppk
+visionbridge_key*
+
+# yt-dlp cookies — a live YouTube session credential.
+cookies.txt
+
 # --- Build output ---------------------------------------------------------
 dist/
 build/
