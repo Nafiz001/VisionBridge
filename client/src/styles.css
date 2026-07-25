@@ -1175,7 +1175,9 @@ legend {
   min-width: 0;
 }
 
-.mic-btn {
+.mic-btn,
+.search-bar button[type='submit'] {
+  min-width: 8.5rem;
   white-space: nowrap;
 }
 

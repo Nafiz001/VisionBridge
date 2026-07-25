@@ -12,6 +12,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '../lib/api.js';
 
 const MAX_RECORD_MS = 10_000;
+// The "Transcribing…" pill must stay up at least this long. A fast reply
+// (short clip, warm cache) can come back in a few hundred ms, which reads as
+// a glitch — the pill flashes and is gone before anyone can read it — rather
+// than as a completed action.
+const MIN_TRANSCRIBE_MS = 1100;
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function useVoiceSearch({ announce, onResults } = {}) {
   const [voiceEnabled, setVoiceEnabled] = useState(null);
@@ -84,6 +90,7 @@ export function useVoiceSearch({ announce, onResults } = {}) {
     setBusyBoth(true);
     setStatus('Transcribing your search…');
     say('Transcribing your search.');
+    const startedAt = Date.now();
     try {
       // Search phrases are English here, so pin Whisper to English — otherwise an
       // accented English phrase can be mis-detected as another language.
@@ -106,6 +113,8 @@ export function useVoiceSearch({ announce, onResults } = {}) {
       say(err.message, true);
       onResultsRef.current?.([], '');
     } finally {
+      const elapsed = Date.now() - startedAt;
+      if (elapsed < MIN_TRANSCRIBE_MS) await wait(MIN_TRANSCRIBE_MS - elapsed);
       setBusyBoth(false);
     }
   }, []);
