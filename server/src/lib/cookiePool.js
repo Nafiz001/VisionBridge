@@ -1,0 +1,97 @@
+/**
+ * Rotation over a pool of yt-dlp cookies.txt files.
+ *
+ * YouTube revokes a cookie session's validity on its own schedule — driven by
+ * how automated the traffic looks to its abuse detection, not by the expiry
+ * timestamps written in the file. A datacenter host can burn through a
+ * session in days regardless of what the file claims. Rather than requiring
+ * a human to notice and swap the file by hand, a directory of cookie files
+ * (one per throwaway account) is tried in rotation: a file that gets
+ * bot-checked is marked dead for a cooldown and skipped, and the next file in
+ * the pool is used automatically on the very next call.
+ *
+ * This does not remove the need to occasionally add a fresh cookie file to
+ * the pool — Google can eventually flag all of them — but it removes the
+ * manual "notice it broke, SSH in, swap the path" step for every account
+ * except the last one standing.
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { config } from '../config.js';
+import { cachePath } from './cache.js';
+import { logger } from '../logger.js';
+
+// How long a bot-checked file is skipped before being tried again. There is
+// no reliable signal for when (or if) Google lifts the flag, so this is a
+// conservative guess rather than a measured value.
+const COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
+const stateFile = () => path.join(cachePath('data'), 'cookie-pool.json');
+
+/** All configured cookie files, in a stable order. Re-read every call so a
+ * file dropped into the pool directory is picked up without a restart. */
+function listCookieFiles() {
+  const dir = config.bin.ytdlpCookiesDir;
+  if (dir) {
+    try {
+      return fs
+        .readdirSync(dir)
+        .filter((name) => name.endsWith('.txt'))
+        .sort()
+        .map((name) => path.join(dir, name));
+    } catch (err) {
+      logger.warn(`Could not read YTDLP_COOKIES_DIR (${dir}): ${err.message}`);
+      return [];
+    }
+  }
+  return config.bin.ytdlpCookies ? [config.bin.ytdlpCookies] : [];
+}
+
+function loadState() {
+  try {
+    return JSON.parse(fs.readFileSync(stateFile(), 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+function saveState(state) {
+  try {
+    fs.mkdirSync(path.dirname(stateFile()), { recursive: true });
+    fs.writeFileSync(stateFile(), JSON.stringify(state, null, 2));
+  } catch (err) {
+    logger.warn(`Could not persist cookie pool state: ${err.message}`);
+  }
+}
+
+/**
+ * Cookie files worth trying right now, in rotation order.
+ *
+ * If every file in the pool is currently in cooldown, the whole pool is
+ * returned anyway rather than an empty list — a stale cookie still beats no
+ * cookie, and it gives a file a chance to self-heal (Google may have lifted
+ * the flag) instead of being permanently skipped after one bad day.
+ */
+export function aliveCookieFiles() {
+  const files = listCookieFiles();
+  if (!files.length) return [];
+  const state = loadState();
+  const now = Date.now();
+  const alive = files.filter((file) => !(state[file]?.deadUntil > now));
+  return alive.length ? alive : files;
+}
+
+/** Marks a cookie file as bot-checked; it is skipped until the cooldown passes. */
+export function markCookieFileDead(file) {
+  const state = loadState();
+  state[file] = { deadUntil: Date.now() + COOLDOWN_MS, markedAt: new Date().toISOString() };
+  saveState(state);
+  logger.warn(`Cookie file bot-checked, skipping for ${Math.round(COOLDOWN_MS / 3_600_000)}h: ${path.basename(file)}`);
+}
+
+/** Pool size and how many files are currently out of cooldown — for diagnostics. */
+export function cookiePoolStatus() {
+  const files = listCookieFiles();
+  const alive = aliveCookieFiles();
+  return { total: files.length, alive: files.length ? alive.length : 0 };
+}

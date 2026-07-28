@@ -13,6 +13,7 @@ import { cachePath, ensureCacheDirs, exists, readJson, writeJson } from '../lib/
 import { run, ytdlpPath } from '../lib/binaries.js';
 import { sleep } from '../lib/pool.js';
 import { baseLang } from '../lib/lang.js';
+import { aliveCookieFiles, markCookieFileDead } from '../lib/cookiePool.js';
 
 /** Video ids are exactly 11 URL-safe characters. */
 const VIDEO_ID = /^[\w-]{11}$/;
@@ -55,19 +56,46 @@ export function parseVideoId(input) {
 export const watchUrl = (videoId) => `https://www.youtube.com/watch?v=${videoId}`;
 
 /**
- * Extra flags every yt-dlp invocation needs.
- *
  * `--remote-components ejs:github` lets yt-dlp fetch its JS challenge-solver
  * script (cached after the first run); without it, format resolution fails
  * outright on current YouTube ("Requested format is not available") even
- * with a working JS runtime. `--cookies` is added only when a cookies.txt is
- * configured — required on most cloud/datacenter hosts, where YouTube
- * otherwise responds "Sign in to confirm you're not a bot".
+ * with a working JS runtime. Every invocation needs it, cookies or not.
  */
-function ytdlpArgs() {
-  const args = ['--remote-components', 'ejs:github'];
-  if (config.bin.ytdlpCookies) args.push('--cookies', config.bin.ytdlpCookies);
-  return args;
+const BASE_YTDLP_ARGS = ['--remote-components', 'ejs:github'];
+
+/** YouTube's bot-check message, matched to trigger cookie rotation. */
+const BOT_CHECK = /sign in to confirm you.{0,5}re not a bot/i;
+
+/**
+ * Runs yt-dlp with automatic cookie rotation.
+ *
+ * `buildArgs(cookieArgs)` returns the full argument list for one attempt,
+ * given the `--cookies <file>` pair to splice in (or `[]` with no pool
+ * configured). If an attempt fails with YouTube's bot-check message, that
+ * cookie file is marked dead for a cooldown and the next file in the pool is
+ * tried. Any other failure — a real network error, a malformed video id —
+ * is not retried, since burning through the whole pool would only slow down
+ * an error that cookies can't fix anyway. Exhausting the pool surfaces the
+ * last bot-check error, identical to the message before rotation existed.
+ */
+async function runYtdlp(bin, buildArgs, options) {
+  const files = aliveCookieFiles();
+  const attempts = files.length ? files : [null];
+  let lastErr;
+  for (const cookieFile of attempts) {
+    const cookieArgs = cookieFile ? ['--cookies', cookieFile] : [];
+    try {
+      return await run(bin, buildArgs(cookieArgs), options);
+    } catch (err) {
+      lastErr = err;
+      if (cookieFile && BOT_CHECK.test(err.message)) {
+        markCookieFileDead(cookieFile);
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastErr;
 }
 
 function requireYtDlp() {
@@ -116,9 +144,16 @@ export async function getVideoInfo(videoId) {
 
   const bin = requireYtDlp();
   const { stdout } = await logger.time('yt-dlp metadata', () =>
-    run(
+    runYtdlp(
       bin,
-      ['--dump-single-json', '--skip-download', '--no-warnings', ...ytdlpArgs(), watchUrl(videoId)],
+      (cookieArgs) => [
+        '--dump-single-json',
+        '--skip-download',
+        '--no-warnings',
+        ...BASE_YTDLP_ARGS,
+        ...cookieArgs,
+        watchUrl(videoId),
+      ],
       { timeoutMs: 120_000 },
     ),
   );
@@ -186,9 +221,9 @@ export async function downloadVideo(videoId, onProgress) {
   onProgress?.({ percent: 0, message: 'Downloading video' });
 
   await logger.time('yt-dlp download', () =>
-    run(
+    runYtdlp(
       bin,
-      [
+      (cookieArgs) => [
         '-f',
         format,
         '--no-playlist',
@@ -196,7 +231,8 @@ export async function downloadVideo(videoId, onProgress) {
         '--no-part',
         '--retries',
         '3',
-        ...ytdlpArgs(),
+        ...BASE_YTDLP_ARGS,
+        ...cookieArgs,
         '-o',
         output,
         watchUrl(videoId),
@@ -312,9 +348,9 @@ export async function downloadSubtitles(videoId, { preferredLangs } = {}) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       await logger.time('yt-dlp subtitles', () =>
-        run(
+        runYtdlp(
           bin,
-          [
+          (cookieArgs) => [
             '--skip-download',
             '--write-subs',
             '--write-auto-subs',
@@ -324,7 +360,8 @@ export async function downloadSubtitles(videoId, { preferredLangs } = {}) {
             'json3/vtt',
             '--no-warnings',
             '--no-playlist',
-            ...ytdlpArgs(),
+            ...BASE_YTDLP_ARGS,
+            ...cookieArgs,
             '-o',
             output,
             watchUrl(videoId),

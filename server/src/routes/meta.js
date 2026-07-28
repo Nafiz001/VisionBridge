@@ -10,6 +10,7 @@ import { config, validateConfig } from '../config.js';
 import { asyncRoute } from '../errors.js';
 import { cacheStats } from '../lib/cache.js';
 import { probeBinaries } from '../lib/binaries.js';
+import { cookiePoolStatus } from '../lib/cookiePool.js';
 import { currentResolution, listModels, resolveModel } from '../services/gemma.js';
 
 export const metaRouter = Router();
@@ -73,6 +74,7 @@ metaRouter.get(
     res.json({
       binaries,
       cache: { dir: config.cacheDir, ...cache },
+      ytdlpCookiePool: cookiePoolStatus(),
       visibleModels: models,
       gemmaModels: models.filter((id) => /^gemma/i.test(id)),
       error,

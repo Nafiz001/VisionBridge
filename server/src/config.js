@@ -74,6 +74,12 @@ export const config = {
     // not a bot". Leave blank to let yt-dlp request anonymously (fine on most
     // residential connections).
     ytdlpCookies: env.YTDLP_COOKIES_PATH || '',
+    // A directory of cookies.txt files (one per throwaway account), tried in
+    // rotation. YouTube revokes a session's cookies on its own schedule, not
+    // the file's stated expiry — when one is bot-checked, it is skipped for a
+    // cooldown and the next file in the pool is used automatically. Takes
+    // priority over YTDLP_COOKIES_PATH when set.
+    ytdlpCookiesDir: env.YTDLP_COOKIES_DIR || '',
   },
 
   pipeline: {
