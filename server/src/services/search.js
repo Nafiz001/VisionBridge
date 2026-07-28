@@ -40,7 +40,16 @@ export async function searchYouTube(query, limit) {
   const { stdout } = await logger.time('yt-dlp search', () =>
     run(
       bin,
-      [`ytsearch${count}:${q}`, '--flat-playlist', '--dump-json', '--no-warnings', '--skip-download'],
+      [
+        `ytsearch${count}:${q}`,
+        '--flat-playlist',
+        '--dump-json',
+        '--no-warnings',
+        '--skip-download',
+        // Search is bot-checked the same way playback metadata is, so it goes
+        // out through the same egress proxy when one is configured.
+        ...(config.bin.ytdlpProxy ? ['--proxy', config.bin.ytdlpProxy] : []),
+      ],
       { timeoutMs: 60_000 },
     ),
   );

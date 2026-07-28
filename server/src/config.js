@@ -80,6 +80,14 @@ export const config = {
     // cooldown and the next file in the pool is used automatically. Takes
     // priority over YTDLP_COOKIES_PATH when set.
     ytdlpCookiesDir: env.YTDLP_COOKIES_DIR || '',
+    // Egress proxy for every yt-dlp request (`http://`, `https://` or
+    // `socks5://`). The bot-check is really a judgement about the *IP*, not
+    // the session, which is why cookies exported from a working browser still
+    // rot within days on a datacenter host. Sending yt-dlp out through a
+    // residential connection addresses the cause, and needs no cookies at all.
+    // Only the one-time download per video goes through it — playback is the
+    // YouTube iframe and Q&A reads the cached file, so neither touches this.
+    ytdlpProxy: env.YTDLP_PROXY || '',
   },
 
   pipeline: {

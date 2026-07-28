@@ -63,6 +63,14 @@ export const watchUrl = (videoId) => `https://www.youtube.com/watch?v=${videoId}
  */
 const BASE_YTDLP_ARGS = ['--remote-components', 'ejs:github'];
 
+/**
+ * Base arguments plus the egress proxy, when one is configured. Built per call
+ * rather than once at import so tests (and a restart-free `.env` edit) see the
+ * current value.
+ */
+const baseArgs = () =>
+  config.bin.ytdlpProxy ? [...BASE_YTDLP_ARGS, '--proxy', config.bin.ytdlpProxy] : BASE_YTDLP_ARGS;
+
 /** YouTube's bot-check message, matched to trigger cookie rotation. */
 const BOT_CHECK = /sign in to confirm you.{0,5}re not a bot/i;
 
@@ -150,7 +158,7 @@ export async function getVideoInfo(videoId) {
         '--dump-single-json',
         '--skip-download',
         '--no-warnings',
-        ...BASE_YTDLP_ARGS,
+        ...baseArgs(),
         ...cookieArgs,
         watchUrl(videoId),
       ],
@@ -231,7 +239,7 @@ export async function downloadVideo(videoId, onProgress) {
         '--no-part',
         '--retries',
         '3',
-        ...BASE_YTDLP_ARGS,
+        ...baseArgs(),
         ...cookieArgs,
         '-o',
         output,
@@ -360,7 +368,7 @@ export async function downloadSubtitles(videoId, { preferredLangs } = {}) {
             'json3/vtt',
             '--no-warnings',
             '--no-playlist',
-            ...BASE_YTDLP_ARGS,
+            ...baseArgs(),
             ...cookieArgs,
             '-o',
             output,
