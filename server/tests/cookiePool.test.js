@@ -76,6 +76,16 @@ test('when every file is dead, the whole pool is returned rather than nothing', 
   assert.deepEqual(aliveCookieFiles().sort(), [a, b].sort());
 });
 
+test('status reports 0 alive when every file is dead, not the retry fallback count', () => {
+  const a = writeCookieFile('cookies-1.txt');
+  markCookieFileDead(a);
+  // aliveCookieFiles() falls back to the whole pool for actual retries, but
+  // an operator checking status needs the honest number to know a fresh
+  // cookie file is genuinely needed.
+  assert.equal(aliveCookieFiles().length, 1);
+  assert.deepEqual(cookiePoolStatus(), { total: 1, alive: 0 });
+});
+
 test('a fresh file dropped into the pool directory is picked up without a restart', () => {
   writeCookieFile('cookies-1.txt');
   assert.equal(aliveCookieFiles().length, 1);

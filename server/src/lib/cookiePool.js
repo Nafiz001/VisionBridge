@@ -64,6 +64,13 @@ function saveState(state) {
   }
 }
 
+/** Files genuinely out of cooldown right now — no fallback. */
+function notInCooldown(files) {
+  const state = loadState();
+  const now = Date.now();
+  return files.filter((file) => !(state[file]?.deadUntil > now));
+}
+
 /**
  * Cookie files worth trying right now, in rotation order.
  *
@@ -75,9 +82,7 @@ function saveState(state) {
 export function aliveCookieFiles() {
   const files = listCookieFiles();
   if (!files.length) return [];
-  const state = loadState();
-  const now = Date.now();
-  const alive = files.filter((file) => !(state[file]?.deadUntil > now));
+  const alive = notInCooldown(files);
   return alive.length ? alive : files;
 }
 
@@ -89,9 +94,14 @@ export function markCookieFileDead(file) {
   logger.warn(`Cookie file bot-checked, skipping for ${Math.round(COOLDOWN_MS / 3_600_000)}h: ${path.basename(file)}`);
 }
 
-/** Pool size and how many files are currently out of cooldown — for diagnostics. */
+/**
+ * Pool size and how many files are genuinely out of cooldown, for
+ * diagnostics. Deliberately not the same as `aliveCookieFiles()`'s
+ * all-dead fallback — an operator checking this needs to know "0 alive"
+ * really means every file is currently flagged and a fresh one is needed,
+ * not that everything is fine.
+ */
 export function cookiePoolStatus() {
   const files = listCookieFiles();
-  const alive = aliveCookieFiles();
-  return { total: files.length, alive: files.length ? alive.length : 0 };
+  return { total: files.length, alive: notInCooldown(files).length };
 }
