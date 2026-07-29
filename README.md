@@ -406,6 +406,14 @@ curl http://localhost:5174/api/config
 - **Voice search that stays Gemma‑only.** Whisper (ASR) is isolated behind a single `transcribe()`
   function and pinned to English for search queries to avoid language mis‑detection, so Gemma remains
   the only generative model.
+- **YouTube's bot‑check on a cloud host.** Deployed to a VM, every yt‑dlp call failed with *"Sign in
+  to confirm you're not a bot"*; supplying cookies fixed it for about three days, then they died
+  again. The diagnosis is that the check keys on **the IP, not the session** — so authenticating
+  harder was never going to converge, no matter how many accounts were rotated. Solved by changing
+  where the request comes from instead: `YTDLP_PROXY` routes yt‑dlp through a residential
+  connection, after which **no cookies are needed at all**. It is cheap precisely because of the
+  caching design — yt‑dlp runs once per video and playback never touches it
+  ([`docs/RESIDENTIAL_EGRESS.md`](docs/RESIDENTIAL_EGRESS.md)).
 
 ## Accessibility
 
@@ -461,7 +469,7 @@ and a screen reader, and nothing requires sight.
 | `GET` | `/api/process/:jobId` | Poll job progress |
 | `POST` | `/api/describe/frame` | Interactive Q&A about one frame |
 | `GET` | `/api/describe/presets` | The preset questions |
-| `DELETE` | `/api/video/cache?url=` | Evict everything cached for a video |
+| `DELETE` | `/api/video/cache?url=` | Evict everything cached for a video — **development only**, registered solely when `ENABLE_CACHE_ADMIN` is set |
 | `GET` | `/api/search?q=` | Search YouTube (yt‑dlp) |
 | `GET` | `/api/voice-search/status` | Whether spoken search is configured |
 | `POST` | `/api/voice-search` | Transcribe a spoken clip (Whisper), then search |
@@ -494,6 +502,10 @@ Every value is optional except `GEMMA_API_KEY`. See [`.env.example`](.env.exampl
 | `OPENAI_API_KEY` | — | Enables **spoken** search (Whisper). Text search works without it |
 | `WHISPER_MODEL` | `whisper-1` | Transcription model for voice search |
 | `SEARCH_MAX_RESULTS` | `6` | How many YouTube results a search returns |
+| `YTDLP_PROXY` | — | Send every yt‑dlp request out through this proxy (`http://`, `socks5://`). The cure for datacenter bot‑checks — see [Running on a server](#running-on-a-server) |
+| `YTDLP_COOKIES_PATH` | — | A `cookies.txt` for yt‑dlp. Rarely needed on a residential connection |
+| `YTDLP_COOKIES_DIR` | — | A directory of `cookies.txt` files tried in rotation |
+| `ENABLE_CACHE_ADMIN` | off | Registers `DELETE /api/video/cache`. Leave off anywhere reachable from the internet — the API has no authentication |
 
 ---
 
@@ -509,6 +521,40 @@ Three layers, all under `.cache/`:
 
 A second viewing costs zero downloads and zero Gemma calls. Changing the model, the prompt, the
 output language, or a threshold produces a new timeline key, so stale results are never reused.
+
+One consequence is worth stating plainly: **once a video is cached it never needs yt‑dlp again.**
+Playback is the YouTube iframe (pixels stream from YouTube's CDN straight to the viewer), and
+interactive Q&A extracts frames with `ffmpeg` from the file already on disk. yt‑dlp runs exactly
+once per video, during first processing.
+
+---
+
+## Running on a server
+
+YouTube treats a datacenter IP with far more suspicion than a residential one, so a cloud deployment
+hits *"Sign in to confirm you're not a bot"* where a laptop sails through. The important part is
+**the bot‑check keys on the IP, not the session** — which is why a `cookies.txt` exported from a
+perfectly healthy browser still rots within days on a server, and why rotating a pool of accounts
+only spreads that decay across more accounts instead of ending it.
+
+Measured on the same day, same yt‑dlp version, same videos:
+
+| Egress | Cookies needed | Outcome |
+|---|---|---|
+| Laptop (residential) | none at all | zero failures |
+| Cloud VM (datacenter) | required | bot‑checked; cookie dead in ~3 days |
+
+Two complementary answers, both of which avoid cookies entirely:
+
+- **Pre‑process the videos you control on a laptop** and copy the cache files to the server. Because
+  a cached video is permanently independent of yt‑dlp (above), those videos then work unconditionally
+  — see [`docs/LOCAL_PREPROCESSING.md`](docs/LOCAL_PREPROCESSING.md).
+- **Give the server a residential exit** via `YTDLP_PROXY`, so arbitrary URLs work too. A reverse SSH
+  tunnel turns any machine on a home connection into that exit for free — see
+  [`docs/RESIDENTIAL_EGRESS.md`](docs/RESIDENTIAL_EGRESS.md). This costs almost nothing to run: only
+  the one‑time ~20 MB download per video goes through it, never playback.
+
+General server setup lives in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ---
 
@@ -578,3 +624,6 @@ client/
   seconds may be missed. Asking *"What changed?"* covers that case interactively.
 - Processing is front‑loaded: a long video costs several minutes and a number of Gemma calls the
   first time, and nothing on every viewing after that.
+- On a cloud host, a video **nobody has processed yet** still needs a live yt‑dlp call, which YouTube
+  bot‑checks from a datacenter IP. Already‑cached videos are unaffected and keep working
+  unconditionally; see [Running on a server](#running-on-a-server) for the two ways around it.
