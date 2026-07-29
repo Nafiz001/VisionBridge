@@ -73,6 +73,13 @@ export async function listReadyVideos() {
       const info = await readJson('data', `${videoId}.info.json`);
       if (!info?.title) continue;
 
+      // Staying silent is a valid outcome — the pipeline speaks only when the
+      // screen shows something the narration does not explain. But a video
+      // with nothing to say demonstrates nothing, so it is not offered as an
+      // example, however completely it was processed.
+      const descriptions = await describedCount(videoId, dataFiles);
+      if (!descriptions) continue;
+
       const { mtimeMs } = await fs.stat(path.join(cachePath('data'), `${videoId}.info.json`));
       ready.push({
         videoId,
@@ -82,7 +89,7 @@ export async function listReadyVideos() {
         language: info.language || null,
         thumbnail: info.thumbnail || `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
         url: info.webpageUrl || `https://www.youtube.com/watch?v=${videoId}`,
-        descriptions: await describedCount(videoId, dataFiles),
+        descriptions,
         cachedAt: mtimeMs,
       });
     } catch (err) {

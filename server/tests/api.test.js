@@ -120,6 +120,7 @@ test('GET /api/videos/ready lists only fully processed videos', async () => {
     assert.ok(video.title, 'each entry needs a title');
     assert.ok(video.url.includes(video.videoId), 'the url must point at that video');
     assert.ok(video.thumbnail, 'each entry needs a thumbnail');
+    assert.ok(video.descriptions > 0, 'an example with no descriptions demonstrates nothing');
   }
 });
 
