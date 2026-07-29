@@ -102,7 +102,9 @@ export async function evictVideo(videoId) {
   ];
   for (const target of targets) {
     try {
-      await fs.rm(target, { recursive: true, force: true });
+      // Deliberately not `force: true` — that suppresses ENOENT, so every
+      // target would be counted as removed even when nothing was there.
+      await fs.rm(target, { recursive: true });
       removed.push(target);
     } catch {
       /* nothing cached under that name */

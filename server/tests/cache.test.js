@@ -5,6 +5,7 @@ import path from 'node:path';
 import {
   cachePath,
   ensureCacheDirs,
+  evictVideo,
   exists,
   hashKey,
   readJson,
@@ -81,4 +82,13 @@ test('hashKey is stable and order-independent for the same object', () => {
   assert.equal(a, b);
   assert.notEqual(a, hashKey({ model: 'gemma-3-4b-it', threshold: 0.85 }));
   assert.equal(a.length, 16);
+});
+
+test('evictVideo reports nothing removed when the id was never cached', async () => {
+  await ensureCacheDirs();
+  // `fs.rm(..., { force: true })` silently succeeds on a missing path, which
+  // previously made every target count as removed — so evicting an unknown id
+  // reported files it had not touched.
+  const removed = await evictVideo('no-such-video-id-xyz');
+  assert.deepEqual(removed, [], 'an uncached id must report zero removals');
 });

@@ -30,6 +30,16 @@ const int = (value, fallback) => {
 const list = (value, fallback) =>
   (value ? value.split(',') : fallback).map((s) => s.trim()).filter(Boolean);
 
+/**
+ * Only an explicit, affirmative value turns a flag on. Anything else — unset,
+ * empty, `false`, or a typo — leaves it off, so a destructive capability is
+ * never enabled by a malformed setting.
+ */
+const bool = (value, fallback) => {
+  if (value === undefined || value === '') return fallback;
+  return ['1', 'true', 'yes', 'on'].includes(String(value).trim().toLowerCase());
+};
+
 const env = process.env;
 
 export const config = {
@@ -39,6 +49,14 @@ export const config = {
   cacheDir: path.isAbsolute(env.CACHE_DIR || '')
     ? env.CACHE_DIR
     : path.join(REPO_ROOT, env.CACHE_DIR || '.cache'),
+
+  // Registers DELETE /api/video/cache, which erases every artefact for a video.
+  // Off unless explicitly enabled, so a deployment that configures nothing does
+  // not expose it: the API has no authentication, and CORS does not apply to a
+  // non-browser client. Losing a cached video is worse than it sounds — it
+  // cannot be rebuilt without live yt-dlp, and Gemma is not deterministic, so
+  // the replacement descriptions would no longer match the ones documented.
+  enableCacheAdmin: bool(env.ENABLE_CACHE_ADMIN, false),
 
   gemma: {
     apiKey: env.GEMMA_API_KEY || '',

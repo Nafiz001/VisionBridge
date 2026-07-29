@@ -104,3 +104,11 @@ test('unknown routes return a structured 404', async () => {
   const body = await response.json();
   assert.ok(body.error.message.includes('/api/does-not-exist'));
 });
+
+test('DELETE /api/video/cache is not exposed unless explicitly enabled', async () => {
+  // The API has no authentication and CORS does not constrain a non-browser
+  // caller, so an unconfigured deployment must not expose cache eviction:
+  // a wiped video cannot be rebuilt without live yt-dlp.
+  const response = await fetch(`${base}/api/video/cache?videoId=aircAruvnKk`, { method: 'DELETE' });
+  assert.equal(response.status, 404);
+});

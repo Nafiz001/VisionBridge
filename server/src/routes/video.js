@@ -2,6 +2,7 @@
 import { Router } from 'express';
 import fs from 'node:fs/promises';
 import { asyncRoute, badRequest, notFound } from '../errors.js';
+import { config } from '../config.js';
 import { evictVideo } from '../lib/cache.js';
 import { getVideoInfo, parseVideoId } from '../services/youtube.js';
 import { getTranscript } from '../services/transcript.js';
@@ -80,11 +81,20 @@ videoRouter.get(
   }),
 );
 
-videoRouter.delete(
-  '/api/video/cache',
-  asyncRoute(async (req, res) => {
-    const videoId = resolveId(req);
-    const removed = await evictVideo(videoId);
-    res.json({ videoId, removed: removed.length });
-  }),
-);
+/**
+ * Cache eviction is a development convenience, not a production feature: the
+ * client never calls it, and the API has no authentication, so leaving it
+ * registered would let any caller erase a video's cache with one request.
+ * Registering it conditionally (rather than rejecting inside the handler)
+ * means it does not exist at all when disabled — the route simply 404s.
+ */
+if (config.enableCacheAdmin) {
+  videoRouter.delete(
+    '/api/video/cache',
+    asyncRoute(async (req, res) => {
+      const videoId = resolveId(req);
+      const removed = await evictVideo(videoId);
+      res.json({ videoId, removed: removed.length });
+    }),
+  );
+}
