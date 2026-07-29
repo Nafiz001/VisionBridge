@@ -55,6 +55,12 @@ export const api = {
       signal,
     }),
 
+  /**
+   * Videos already processed on this server. These open with no yt-dlp call,
+   * so they work even when YouTube is bot-checking the server's IP.
+   */
+  readyVideos: () => request('/api/videos/ready'),
+
   /** Text search of YouTube (yt-dlp). */
   search: (query) => request(`/api/search?q=${encodeURIComponent(query)}`),
 

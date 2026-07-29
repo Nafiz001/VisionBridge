@@ -1272,6 +1272,18 @@ legend {
   color: var(--primary);
 }
 
+/* The ready-to-play library on the landing page. It reuses the search result
+   rows, but sits in the page rather than a dialog, so it is not capped to the
+   dialog's viewport-relative height. */
+.example-videos .search-results {
+  max-height: none;
+  margin-top: 0.75rem;
+}
+
+.example-videos .result-meta {
+  font-variant-numeric: tabular-nums;
+}
+
 .voice-overlay {
   position: fixed;
   left: 50%;

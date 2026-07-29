@@ -18,6 +18,7 @@ import useVoiceSearch from './hooks/useVoiceSearch.js';
 import LiveRegions from './components/LiveRegions.jsx';
 import Icon from './components/Icon.jsx';
 import UrlForm from './components/UrlForm.jsx';
+import ExampleVideos from './components/ExampleVideos.jsx';
 import ProcessingStatus from './components/ProcessingStatus.jsx';
 import PlayerPanel from './components/PlayerPanel.jsx';
 import QuestionPanel from './components/QuestionPanel.jsx';
@@ -708,6 +709,7 @@ export default function App() {
         {phase === 'idle' && (
           <div className="stage">
             <UrlForm onSubmit={handleSubmit} busy={false} error={formError} />
+            <ExampleVideos onPick={handleSubmit} busy={false} />
           </div>
         )}
 

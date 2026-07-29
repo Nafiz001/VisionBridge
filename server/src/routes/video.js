@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import { asyncRoute, badRequest, notFound } from '../errors.js';
 import { config } from '../config.js';
 import { evictVideo } from '../lib/cache.js';
+import { listReadyVideos } from '../services/library.js';
 import { getVideoInfo, parseVideoId } from '../services/youtube.js';
 import { getTranscript } from '../services/transcript.js';
 import { buildCandidates, findGaps, speechIntervals } from '../services/gaps.js';
@@ -17,6 +18,20 @@ function resolveId(req) {
   if (!source) throw badRequest('Provide a YouTube url or videoId.');
   return parseVideoId(source);
 }
+
+/**
+ * Videos already processed on this server. The client offers these as
+ * examples: they open with no yt-dlp call, so they work even when YouTube is
+ * bot-checking this host's IP.
+ */
+videoRouter.get(
+  '/api/videos/ready',
+  asyncRoute(async (req, res) => {
+    const videos = await listReadyVideos();
+    res.set('Cache-Control', 'public, max-age=60');
+    res.json({ videos, count: videos.length });
+  }),
+);
 
 videoRouter.get(
   '/api/video/info',

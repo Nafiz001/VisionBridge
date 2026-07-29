@@ -105,6 +105,24 @@ test('unknown routes return a structured 404', async () => {
   assert.ok(body.error.message.includes('/api/does-not-exist'));
 });
 
+test('GET /api/videos/ready lists only fully processed videos', async () => {
+  const response = await fetch(`${base}/api/videos/ready`);
+  assert.equal(response.status, 200);
+
+  const body = await response.json();
+  assert.ok(Array.isArray(body.videos));
+  assert.equal(body.count, body.videos.length);
+
+  // Every entry is offered as guaranteed-playable, so it must carry what the
+  // client needs to render and open it without a lookup.
+  for (const video of body.videos) {
+    assert.ok(video.videoId, 'each entry needs a video id');
+    assert.ok(video.title, 'each entry needs a title');
+    assert.ok(video.url.includes(video.videoId), 'the url must point at that video');
+    assert.ok(video.thumbnail, 'each entry needs a thumbnail');
+  }
+});
+
 test('DELETE /api/video/cache is not exposed unless explicitly enabled', async () => {
   // The API has no authentication and CORS does not constrain a non-browser
   // caller, so an unconfigured deployment must not expose cache eviction:
