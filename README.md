@@ -2,7 +2,7 @@
   <img src="docs/images/logo.png" width="130" alt="VisionBridge logo — a cat wearing headphones" />
 </p>
 
-<h1 align="center">VisionBridge2</h1>
+<h1 align="center">VisionBridge</h1>
 
 <p align="center"><strong>Making visual content accessible through intelligent audio descriptions.</strong></p>
 
