@@ -138,7 +138,9 @@ Every moment it chose to describe, generated **in Bengali**:
 - **Find a video by voice.** Hold **W** and *speak* a search; Whisper transcribes it, YouTube is
   searched, and the top result plays — hands‑free. (Or type / paste a link.)
 - **Multilingual.** Describes a lesson in the language it is actually taught in — English, Bengali,
-  and beyond (see [Languages & voices](#languages--voices)).
+  and beyond (see [Languages & voices](#languages--voices)). **Bengali speech requires Microsoft
+  Edge** — it is the only major browser that ships an online Bengali voice out of the box; this is a
+  browser limitation, not a VisionBridge one.
 - **Accessible by construction.** Full keyboard control, screen‑reader announcements, WCAG‑AA
   contrast, a high‑contrast mode, and native controls throughout.
 - **Gemma‑only, enforced in code.** No other LLM or generative model can be reached through this
@@ -219,28 +221,31 @@ the learner's own tongue. One detected language value flows through the whole sy
 prompts → browser speech. Nothing in the timing or gap logic is language‑specific.
 
 > [!IMPORTANT]
-> **Use Microsoft Edge to test Bangla and other non‑English languages.** Descriptions are *generated*
-> correctly in any language by Gemma, but they are *spoken* with the browser's voices — and **only
-> Edge ships online voices for Bangla, Hindi, and most other languages out of the box.** In Chrome,
-> non‑English speech usually needs an OS voice installed first (see below). This is a browser/OS
-> limitation, not a limitation of VisionBridge.
+> **Microsoft Edge is required for spoken Bangla (and most other non‑English languages).**
+> Descriptions are *generated* correctly in any language by Gemma — that part works in any browser.
+> But they are *spoken* with the browser's own voices, and **Edge is the only major browser that
+> ships an online Bengali voice (and voices for most other languages) with no installation.** Open
+> VisionBridge in **Chrome, Firefox, or Safari and Bangla output will not be heard** unless you first
+> install a matching OS voice yourself (see below) — Edge is the one browser where it just works. This
+> is a browser/OS limitation, not a limitation of VisionBridge.
 
 | Setting | Default | What it does |
 |---|---|---|
 | `CAPTION_LANGS` | `auto` | Reads the video's own caption tracks (a Bengali tutorial gets Bengali captions). Or a comma list like `bn,en`. |
 | `OUTPUT_LANG` | `auto` | Language of descriptions and answers. `auto` mirrors the narration; a code like `bn` forces one language. |
 
-### Speech depends on the browser's voices — use **Microsoft Edge** for non‑English
+### Speech depends on the browser's voices — **Microsoft Edge is required** for non‑English
 
 Descriptions are spoken with the browser's **Web Speech API**, which can only use the voices the
 device actually has. This is where the browser matters:
 
 - **Microsoft Edge** exposes Microsoft's **online neural voices** for many languages, including
-  **Bengali** (`bn-IN`, `bn-BD`), Hindi, and dozens more — with no installation. **For Bangla and
-  most non‑English languages, use Edge.** It is the most reliable path and needs only an internet
-  connection.
-- **Chrome** generally only has whatever voices the operating system has installed, so non‑English
-  voices are often missing.
+  **Bengali** (`bn-IN`, `bn-BD`), Hindi, and dozens more — with no installation. **Edge is required
+  for Bangla and most non‑English languages** unless you separately install a matching OS voice; it
+  is the only reliable path and needs only an internet connection.
+- **Chrome, Firefox, and Safari** generally only have whatever voices the operating system has
+  installed, so non‑English voices — Bengali included — are usually **missing entirely** and
+  descriptions will not be spoken aloud in those browsers without extra setup.
 
 When a video's language has **no installed voice**, VisionBridge tells the learner (rather than
 reading the text with a mismatched voice), and shows how to fix it.
@@ -252,9 +257,12 @@ reading the text with a mismatched voice), and shows how to fix it.
 2. **Output** — leave `OUTPUT_LANG=auto` to mirror the narration, or force it, e.g. `OUTPUT_LANG=bn`
    to always describe in Bengali.
 3. **Voice** — get a voice for that language:
-   - **Easiest:** open the app in **Microsoft Edge** — its online voices cover most languages.
-   - **Or install an OS voice:** on Windows, *Settings → Time & language → Language & region → Add a
-     language → (check Text‑to‑speech)*; then restart the browser so `speechSynthesis` picks it up.
+   - **Required for Bangla:** open the app in **Microsoft Edge** — its online voices cover Bengali
+     and most other languages with nothing to install. This is the only browser this is guaranteed
+     to work in without extra setup.
+   - **Alternative:** install an OS voice — on Windows, *Settings → Time & language → Language &
+     region → Add a language → (check Text‑to‑speech)* — then restart the browser so
+     `speechSynthesis` picks it up. Needed for any browser other than Edge.
 4. **Check what you have** — in the browser console:
    ```js
    speechSynthesis.getVoices().filter(v => v.lang.startsWith('bn'))
@@ -617,8 +625,9 @@ client/
 
 - A video with **no captions in any language** cannot be processed — gap detection depends on knowing
   when the instructor speaks, and that is what captions provide.
-- **Spoken output quality depends on the browser/OS voices** for the chosen language — use Microsoft
-  Edge for the widest coverage (see [Languages & voices](#languages--voices)).
+- **Spoken output depends entirely on the browser's voices.** Bangla and most non‑English languages
+  need **Microsoft Edge** — other browsers will generate a correct description and then have nothing
+  installed to speak it aloud (see [Languages & voices](#languages--voices)).
 - Live streams are rejected.
 - Descriptions come from a single frame per moment, so a change that only makes sense across several
   seconds may be missed. Asking *"What changed?"* covers that case interactively.

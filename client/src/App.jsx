@@ -685,6 +685,12 @@ export default function App() {
         </div>
 
         <div className="header-actions">
+          {phase !== 'idle' && (
+            <button type="button" className="secondary" onClick={reset}>
+              <Icon name="home" size={18} />
+              Home
+            </button>
+          )}
           <button
             type="button"
             className="secondary search-open-btn"
